@@ -25,6 +25,8 @@ namespace m1
         float yPhase;
 
         glm::vec3 color;
+
+        float intensity;
     };
 
     class Tema3 : public gfxc::SimpleScene
@@ -70,5 +72,9 @@ namespace m1
         glm::vec3 GetFireflyPos(const Firefly& f, float t, const glm::vec3& center);
         void RenderFireflies(const glm::vec3& center);
         void RenderMeshSimple(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix);
+
+        //lumini
+        void SendFireflyLights(Shader* shader, const glm::vec3& center);
+        void SendSpotlights(Shader* shader);
     };
 }   // namespace m1

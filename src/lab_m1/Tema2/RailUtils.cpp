@@ -1,15 +1,6 @@
 #include "RailUtils.h"
-
-glm::vec3 DirToVector(RailDir dir)
-{
-    switch (dir) {
-    case RailDir::Forward:  return glm::vec3(0, 0, 1);
-    case RailDir::Backward: return glm::vec3(0, 0, -1);
-    case RailDir::Left:     return glm::vec3(-1, 0, 0);
-    case RailDir::Right:    return glm::vec3(1, 0, 0);
-    }
-    return glm::vec3(0, 0, 1);
-}
+#include "tipuriSine.h"
+#include <utils/math_utils.h>
 
 float DirToAngle(RailDir dir)
 {
@@ -20,3 +11,4 @@ float DirToAngle(RailDir dir)
     case RailDir::Left:     return RADIANS(-90);
     }
     return 0.0f;
+}

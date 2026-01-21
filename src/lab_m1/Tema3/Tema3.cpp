@@ -74,6 +74,13 @@ void Tema3::Init()
         mapTextures["leaves_normal"] = texture;
     }
 
+    //spotlight texture
+    {
+        Texture2D* texture = new Texture2D();
+        texture->Load2D(PATH_JOIN(sourceTextureDir, "cookie1.jpg").c_str(), GL_REPEAT);
+        mapTextures["cookie"] = texture;
+    }
+
 
 
     // Load meshes
@@ -190,7 +197,10 @@ void Tema3::Init()
         f.yPhase = (rand() % 100) / 100.0f * 6.28318f;
 
         // BONUS: galben-verzui
-        f.color = glm::vec3(0.7f + (rand() % 30) / 100.0f, 1.0f, 0.4f);
+		float randNum = rand() % 30 / 100.0f;
+        f.color = glm::vec3(0.7f + randNum, 1.0f, 0.3f - randNum);
+
+        f.intensity = 0.6f + (rand() % 100) / 100.0f * 1.2f;
 
         fireflies.push_back(f);
     }
@@ -392,6 +402,18 @@ void Tema3::RenderFireflies(const glm::vec3& center)
 
 void Tema3::Update(float deltaTimeSeconds)
 {
+    // lumini
+    {
+        SendFireflyLights(shaders["LabShader"], glm::vec3(0, 0, 0));
+		SendFireflyLights(shaders["TreeShader"], glm::vec3(0, 0, 0));
+        SendFireflyLights(shaders["LeavesShader"], glm::vec3(0, 0, 0));
+
+        SendSpotlights(shaders["LabShader"]);
+        SendSpotlights(shaders["TreeShader"]);
+        SendSpotlights(shaders["LeavesShader"]);
+
+    }
+
     elapsedTime += deltaTimeSeconds;
      //teren
     {
@@ -418,6 +440,70 @@ void Tema3::Update(float deltaTimeSeconds)
 
 
 }
+
+void Tema3::SendFireflyLights(Shader* shader, const glm::vec3& center)
+{
+    if (!shader || !shader->GetProgramID()) return;
+
+    glUseProgram(shader->program);
+
+    int count = (int)fireflies.size();
+    glUniform1i(glGetUniformLocation(shader->program, "uFireflyCount"), count);
+
+    for (int i = 0; i < count; i++)
+    {
+        const Firefly& f = fireflies[i];
+
+        glm::vec3 p = GetFireflyPos(f, elapsedTime, center);
+
+        // uFireflyPos[i]
+        std::string posName = "uFireflyPos[" + std::to_string(i) + "]";
+        glUniform3fv(glGetUniformLocation(shader->program, posName.c_str()), 1, glm::value_ptr(p));
+
+        // uFireflyColor[i]
+        std::string colName = "uFireflyColor[" + std::to_string(i) + "]";
+        glUniform3fv(glGetUniformLocation(shader->program, colName.c_str()), 1, glm::value_ptr(f.color));
+
+        // uFireflyIntensity[i]
+        std::string intName = "uFireflyIntensity[" + std::to_string(i) + "]";
+        glUniform1f(glGetUniformLocation(shader->program, intName.c_str()), f.intensity);
+    }
+}
+
+void Tema3::SendSpotlights(Shader* shader)
+{
+    if (!shader || !shader->GetProgramID()) return;
+    glUseProgram(shader->program);
+
+    glUniform1i(glGetUniformLocation(shader->program, "uSpotCount"), 2);
+
+    glm::vec3 pos1 = glm::vec3(-0.8f, 3.5f, 0.0f);
+    glm::vec3 pos2 = glm::vec3(0.8f, 3.5f, 0.0f);
+
+    glm::vec3 dir1 = glm::normalize(glm::vec3(-0.7f, -1.0f, 0.0f));
+    glm::vec3 dir2 = glm::normalize(glm::vec3(0.7f, -1.0f, 0.0f));
+
+    glm::vec3 col = glm::vec3(0.8f, 0.85f, 1.0f);
+
+    float cutoff = cos(RADIANS(18.0f));
+    float outer = cos(RADIANS(28.0f));
+
+    // Spot 1
+    glUniform3fv(glGetUniformLocation(shader->program, "uSpotPos[0]"), 1, glm::value_ptr(pos1));
+    glUniform3fv(glGetUniformLocation(shader->program, "uSpotDir[0]"), 1, glm::value_ptr(dir1));
+    glUniform3fv(glGetUniformLocation(shader->program, "uSpotColor[0]"), 1, glm::value_ptr(col));
+    glUniform1f(glGetUniformLocation(shader->program, "uSpotCutoff[0]"), cutoff);
+    glUniform1f(glGetUniformLocation(shader->program, "uSpotOuterCutoff[0]"), outer);
+
+    // Spot 2
+    glUniform3fv(glGetUniformLocation(shader->program, "uSpotPos[1]"), 1, glm::value_ptr(pos2));
+    glUniform3fv(glGetUniformLocation(shader->program, "uSpotDir[1]"), 1, glm::value_ptr(dir2));
+    glUniform3fv(glGetUniformLocation(shader->program, "uSpotColor[1]"), 1, glm::value_ptr(col));
+    glUniform1f(glGetUniformLocation(shader->program, "uSpotCutoff[1]"), cutoff);
+    glUniform1f(glGetUniformLocation(shader->program, "uSpotOuterCutoff[1]"), outer);
+}
+
+
 
 
 void Tema3::FrameEnd()
@@ -475,6 +561,15 @@ void Tema3::RenderSimpleMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelM
         glUniform1i(glGetUniformLocation(shader->program, "texture_2"), 1);
     }
 
+    // cookie texture
+    if (mapTextures["cookie"])
+    {
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, mapTextures["cookie"]->GetTextureID());
+        glUniform1i(glGetUniformLocation(shader->program, "cookieTexture"), 2);
+    }
+
+
     if (shader->GetName() == "TreeShader")
     {
         glUniform1f(glGetUniformLocation(shader->program, "TREE_HEIGHT"), 2.0f);
@@ -487,11 +582,9 @@ void Tema3::RenderSimpleMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelM
 
     glBindVertexArray(mesh->GetBuffers()->m_VAO);
 
-    // Setează distanța maximă până la care se vede (ajustează valoarea după plac)
     float maxDist = 25.0f;
     glUniform1f(glGetUniformLocation(shader->program, "max_distance"), maxDist);
 
-    // Setează culoarea ceții (gri deschis/albăstrui pentru iarnă)
     glm::vec3 fogColor = glm::vec3(0.5f, 0.55f, 0.6f);
     glUniform3fv(glGetUniformLocation(shader->program, "fog_color"), 1, glm::value_ptr(fogColor));
     glDrawElements(mesh->GetDrawMode(), (int)mesh->indices.size(), GL_UNSIGNED_INT, 0);
